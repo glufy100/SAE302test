@@ -59,13 +59,14 @@ Ouvrir plusieurs terminaux dans le dossier du projet :
 
 ```bash
 python carrefour.py
-python voiture.py 5
+python voiture.py 3
 python urgence.py Ambulance N
 ```
 
 Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:5000`.
-Le nombre `5` indique la quantité de voitures à générer. Le serveur choisit automatiquement
-les routes, donc il n'est pas nécessaire d'indiquer une direction. Les voitures normales
+Le nombre `3` indique la densité de circulation. Les voitures sont générées en continu,
+et une densité plus élevée réduit le délai entre deux apparitions. Le serveur choisit
+automatiquement les routes, donc il n'est pas nécessaire d'indiquer une direction. Les voitures normales
 interrogent leur feu et attendent s'il est rouge. Le véhicule
 prioritaire envoie `URGENCE`, le serveur met sa direction au vert, répond
 `PASSAGE_AUTORISE`, puis revient au cycle normal après `TERMINE`.

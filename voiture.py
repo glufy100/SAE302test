@@ -16,25 +16,7 @@ def simuler_voiture(numero: int):
             client_file = client.makefile("r", encoding="utf-8")
             client.sendall(f"IDENTITE|{nom}|voiture|AUTO\n".encode("utf-8"))
             print(f"{nom} arrive au carrefour.")
-            passage_autorise = False
-            for _ in range(12):
-                reponse = client_file.readline().strip()
-                if not reponse:
-                    break
-                morceaux = reponse.split("|")
-                if morceaux[0] != "FEU":
-                    continue
-                if morceaux[2] == "VERT":
-                    print(f"{nom} : feu vert, je traverse.")
-                    passage_autorise = True
-                    break
-                print(f"{nom} : feu rouge, j'attends.")
-                time.sleep(2)
-                client.sendall(b"ETAT\n")
-
-            if not passage_autorise:
-                print(f"{nom} : attente trop longue, je reste au feu.")
-                return
+            client_file.readline()
             position = 0
             while position < 100:
                 client.sendall(b"AVANCE\n")
@@ -56,19 +38,22 @@ def simuler_voiture(numero: int):
 
 def main():
     try:
-        quantite = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-        if quantite < 1:
+        densite = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+        if densite < 1:
             raise ValueError
     except ValueError:
-        print("Utilisation : python voiture.py <quantite>")
+        print("Utilisation : python voiture.py <densite>")
         return
 
-    voitures = [threading.Thread(target=simuler_voiture, args=(numero,))
-                for numero in range(1, quantite + 1)]
-    for voiture in voitures:
-        voiture.start()
-    for voiture in voitures:
-        voiture.join()
+    numero = 1
+    try:
+        while True:
+            voiture = threading.Thread(target=simuler_voiture, args=(numero,), daemon=True)
+            voiture.start()
+            numero += 1
+            time.sleep(max(0.6, 3.0 / densite))
+    except KeyboardInterrupt:
+        print("Generation des voitures arretee.")
 
 
 if __name__ == "__main__":

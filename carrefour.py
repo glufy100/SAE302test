@@ -4,7 +4,7 @@ import socket
 import threading
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QLibraryInfo, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget
 
@@ -94,8 +94,20 @@ class ServeurCarrefour:
     def _avancer_vehicule(self, client: socket.socket, vehicule: Vehicule):
         with self.etat.verrou:
             prochaine_position = min(vehicule.progression + 10, 100)
+            feu_vert = self.etat.feux[vehicule.direction] == "VERT"
+            approche_ligne_arret = vehicule.progression < 40 < prochaine_position
             entre_dans_le_carrefour = vehicule.progression < 50 <= prochaine_position
-            if entre_dans_le_carrefour:
+            reponse = ""
+            message = ""
+
+            if approche_ligne_arret and not feu_vert:
+                vehicule.progression = 40
+                reponse = "POSITION|40"
+                message = f"{vehicule.nom} attend au feu rouge"
+            elif vehicule.progression == 40 and not feu_vert:
+                reponse = "ATTENTE|40"
+                message = f"{vehicule.nom} attend au feu rouge"
+            elif entre_dans_le_carrefour:
                 axe_vehicule = self._axe(vehicule.direction)
                 carrefour_occupe = any(
                     autre.nom != vehicule.nom
@@ -104,12 +116,14 @@ class ServeurCarrefour:
                     for autre in self.etat.vehicules.values()
                 )
                 if carrefour_occupe:
-                    self._envoyer(client, f"ATTENTE|{vehicule.progression}")
-                    return
-            vehicule.progression = prochaine_position
-            progression = vehicule.progression
-        self._envoyer(client, f"POSITION|{progression}")
-        self.etat.notifier(f"{vehicule.nom} traverse ({progression} %)")
+                    reponse = f"ATTENTE|{vehicule.progression}"
+                    message = f"{vehicule.nom} attend avant le carrefour"
+            if not reponse:
+                vehicule.progression = prochaine_position
+                reponse = f"POSITION|{vehicule.progression}"
+                message = f"{vehicule.nom} traverse ({vehicule.progression} %)"
+        self._envoyer(client, reponse)
+        self.etat.notifier(message)
 
     def _gerer_client(self, client: socket.socket):
         vehicule: Vehicule | None = None
@@ -120,7 +134,13 @@ class ServeurCarrefour:
                 commande = morceaux[0]
                 if commande == "IDENTITE" and len(morceaux) >= 4:
                     direction = morceaux[3] if morceaux[3] in ("N", "S", "E", "O") else self._choisir_direction()
-                    vehicule = Vehicule(morceaux[1], morceaux[2], direction)
+                    with self.etat.verrou:
+                        voitures_meme_direction = sum(
+                            autre.direction == direction
+                            for autre in self.etat.vehicules.values()
+                        )
+                    vehicule = Vehicule(morceaux[1], morceaux[2], direction,
+                                        progression=-20 * voitures_meme_direction)
                     with self.etat.verrou:
                         self.etat.vehicules[vehicule.nom] = vehicule
                     self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.etat_feu(vehicule.direction)}")
@@ -192,16 +212,20 @@ class VueCarrefour(QWidget):
             progression = vehicule.progression / 100
             decalage = (index % 3 - 1) * 8
             if vehicule.direction == "N":
-                x, y = centre_x - 15 + decalage, 20 + int(360 * progression)
+                x, y = centre_x - 11 + decalage, 20 + int(360 * progression)
+                largeur_vehicule, hauteur_vehicule = 22, 32
             elif vehicule.direction == "S":
-                x, y = centre_x - 15 + decalage, 380 - int(360 * progression)
+                x, y = centre_x - 11 + decalage, 380 - int(360 * progression)
+                largeur_vehicule, hauteur_vehicule = 22, 32
             elif vehicule.direction == "E":
-                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y - 15 + decalage
+                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y - 11 + decalage
+                largeur_vehicule, hauteur_vehicule = 32, 22
             else:
-                x, y = 95 + int((largeur - 220) * progression), centre_y - 15 + decalage
+                x, y = 95 + int((largeur - 220) * progression), centre_y - 11 + decalage
+                largeur_vehicule, hauteur_vehicule = 32, 22
             painter.setBrush(QBrush(QColor("#e9584f") if vehicule.prioritaire else QColor("#3478bd")))
             painter.setPen(QPen(QColor("#172027"), 1))
-            painter.drawRect(x, y, 30, 22)
+            painter.drawRect(x, y, largeur_vehicule, hauteur_vehicule)
             painter.setPen(QColor("#172027"))
             painter.drawText(x, y - 5, vehicule.nom[:12])
 
@@ -251,6 +275,8 @@ class FenetreCarrefour(QMainWindow):
 
 
 def main():
+    plugin_path = QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath)
+    QApplication.setLibraryPaths([plugin_path])
     application = QApplication([])
     etat = EtatCarrefour()
     serveur = ServeurCarrefour(etat)
