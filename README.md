@@ -75,7 +75,7 @@ normal en continu, puis lance une ambulance apres quelques secondes. `Ctrl+C` ar
 proprement les trois programmes.
 
 Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:5000`.
-Le nombre `3` indique la densité de circulation. Les voitures sont générées en continu,
+Le nombre `3` indique la densité de circulation et doit être fourni. Les voitures sont générées en continu,
 et une densité plus élevée réduit le délai entre deux apparitions. Le serveur choisit
 automatiquement les routes, donc il n'est pas nécessaire d'indiquer une direction. Les voitures normales
 avancent jusqu'à la ligne d'arrêt, attendent au feu orange ou rouge, puis traversent

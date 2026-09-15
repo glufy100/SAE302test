@@ -2,6 +2,7 @@
 
 import socket
 import threading
+import random
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, QLibraryInfo, QTimer, Signal
@@ -34,7 +35,6 @@ class EtatCarrefour(QObject):
         self.vehicules: dict[str, Vehicule] = {}
         self.priorite: str | None = None
         self.message = "Trafic normal"
-        self.prochaine_direction = 0
         self.phase = "NS_VERT"
         self.temps_phase = 0
 
@@ -43,24 +43,6 @@ class EtatCarrefour(QObject):
             if message:
                 self.message = message
         self.change.emit()
-
-    def etat_feu(self, direction: str) -> str:
-        with self.verrou:
-            return self.feux.get(direction, "ROUGE")
-
-    def changer_feux(self, direction_prioritaire: str | None):
-        with self.verrou:
-            if direction_prioritaire:
-                self.feux = {direction: "VERT" if direction == direction_prioritaire else "ROUGE"
-                             for direction in ("N", "S", "E", "O")}
-                self.priorite = direction_prioritaire
-                self.phase = "URGENCE"
-            else:
-                self.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
-                self.priorite = None
-                self.phase = "NS_VERT"
-                self.temps_phase = 0
-
 
 class ServeurCarrefour:
     def __init__(self, etat: EtatCarrefour):
@@ -89,19 +71,7 @@ class ServeurCarrefour:
         client.sendall((message + "\n").encode("utf-8"))
 
     def _choisir_direction(self) -> str:
-        directions = ("N", "S", "E", "O")
-        with self.etat.verrou:
-            direction = directions[self.etat.prochaine_direction]
-            self.etat.prochaine_direction = (self.etat.prochaine_direction + 1) % len(directions)
-        return direction
-
-    @staticmethod
-    def _axe(direction: str) -> str:
-        return "vertical" if direction in ("N", "S") else "horizontal"
-
-    @staticmethod
-    def _direction_a_droite(direction: str) -> str:
-        return {"N": "E", "E": "S", "S": "O", "O": "N"}[direction]
+        return random.choice(("N", "S", "E", "O"))
 
     def _avancer_vehicule(self, client: socket.socket, vehicule: Vehicule):
         with self.etat.verrou:
@@ -136,16 +106,15 @@ class ServeurCarrefour:
                 reponse = f"ATTENTE|{LIGNE_ARRET}"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
             elif not reponse and entre_dans_le_carrefour:
-                axe_vehicule = self._axe(vehicule.direction)
                 carrefour_occupe = any(
                     autre.nom != vehicule.nom
-                    and self._axe(autre.direction) != axe_vehicule
+                    and (autre.direction in ("N", "S")) != (vehicule.direction in ("N", "S"))
                     and autre.engagee
                     and 50 <= autre.progression <= 60
                     for autre in self.etat.vehicules.values()
                 )
                 vehicule_prioritaire_a_droite = any(
-                    autre.direction == self._direction_a_droite(vehicule.direction)
+                    autre.direction == {"N": "E", "E": "S", "S": "O", "O": "N"}[vehicule.direction]
                     and not autre.engagee
                     and autre.progression >= LIGNE_ARRET
                     and self.etat.feux[autre.direction] == "VERT"
@@ -183,13 +152,17 @@ class ServeurCarrefour:
                                         progression=-20 * voitures_meme_direction)
                     with self.etat.verrou:
                         self.etat.vehicules[vehicule.nom] = vehicule
-                    self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.etat_feu(vehicule.direction)}")
+                    self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.feux[vehicule.direction]}")
                     self.etat.notifier(f"{vehicule.nom} est connecte")
                 elif commande == "ETAT" and vehicule:
-                    self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.etat_feu(vehicule.direction)}")
+                    self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.feux[vehicule.direction]}")
                 elif commande == "URGENCE" and vehicule:
                     vehicule.prioritaire = True
-                    self.etat.changer_feux(vehicule.direction)
+                    with self.etat.verrou:
+                        self.etat.feux = {direction: "VERT" if direction == vehicule.direction else "ROUGE"
+                                          for direction in ("N", "S", "E", "O")}
+                        self.etat.priorite = vehicule.direction
+                        self.etat.phase = "URGENCE"
                     self._envoyer(client, "PASSAGE_AUTORISE")
                     self.etat.notifier(f"Priorite accordee a {vehicule.nom}")
                     print(f"Demande URGENCE de {vehicule.nom} ({vehicule.direction})")
@@ -199,7 +172,11 @@ class ServeurCarrefour:
                     with self.etat.verrou:
                         vehicule.progression = 100
                     if vehicule.prioritaire:
-                        self.etat.changer_feux(None)
+                        with self.etat.verrou:
+                            self.etat.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
+                            self.etat.priorite = None
+                            self.etat.phase = "NS_VERT"
+                            self.etat.temps_phase = 0
                         self.etat.notifier("Trafic normal")
                     print(f"Passage termine pour {vehicule.nom}")
         except (ConnectionResetError, BrokenPipeError, OSError):
