@@ -18,6 +18,8 @@ def main():
         client_file.readline()
         client.sendall(b"URGENCE\n")
         print("Carrefour : PASSAGE_AUTORISE")
+        print(f"{nom} est visible sur la route {direction}.")
+        time.sleep(1)
         position = 0
         while position < 100:
             client.sendall(b"AVANCE\n")
@@ -27,7 +29,7 @@ def main():
             else:
                 position = int(progression[1])
                 print(f"{nom} : progression {max(0, position)} %")
-            time.sleep(0.4)
+            time.sleep(0.8)
         client.sendall(b"TERMINE\n")
         print(f"{nom} a termine son passage.")
 

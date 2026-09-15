@@ -148,8 +148,8 @@ class ServeurCarrefour:
                             autre.direction == direction
                             for autre in self.etat.vehicules.values()
                         )
-                    vehicule = Vehicule(morceaux[1], morceaux[2], direction,
-                                        progression=-20 * voitures_meme_direction)
+                    position = 0 if morceaux[2] == "urgence" else -20 * voitures_meme_direction
+                    vehicule = Vehicule(morceaux[1], morceaux[2], direction, progression=position)
                     with self.etat.verrou:
                         self.etat.vehicules[vehicule.nom] = vehicule
                     self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.feux[vehicule.direction]}")
@@ -186,8 +186,10 @@ class ServeurCarrefour:
         finally:
             if vehicule:
                 with self.etat.verrou:
-                    self.etat.vehicules.pop(vehicule.nom, None)
-                    if vehicule.prioritaire:
+                    meme_vehicule = self.etat.vehicules.get(vehicule.nom) is vehicule
+                    if meme_vehicule:
+                        self.etat.vehicules.pop(vehicule.nom, None)
+                    if meme_vehicule and vehicule.prioritaire:
                         self.etat.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
                         self.etat.priorite = None
                         self.etat.phase = "NS_VERT"
