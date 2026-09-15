@@ -19,6 +19,7 @@ class Vehicule:
     direction: str
     prioritaire: bool = False
     progression: int = 0
+    engagee: bool = False
 
 
 class EtatCarrefour(QObject):
@@ -106,25 +107,26 @@ class ServeurCarrefour:
             message = ""
 
             couleur_feu = self.etat.feux[vehicule.direction]
-            voitures_devant = [
-                autre.progression
-                for autre in self.etat.vehicules.values()
-                if autre.nom != vehicule.nom
-                and autre.direction == vehicule.direction
-                and autre.progression > vehicule.progression
-            ]
-            if voitures_devant:
-                position_voiture_devant = min(voitures_devant)
-                distance_trop_courte = prochaine_position > position_voiture_devant - 20
-                if distance_trop_courte:
-                    reponse = f"ATTENTE|{vehicule.progression}"
-                    message = f"{vehicule.nom} garde ses distances"
+            if not vehicule.engagee:
+                voitures_devant = [
+                    autre.progression
+                    for autre in self.etat.vehicules.values()
+                    if autre.nom != vehicule.nom
+                    and autre.direction == vehicule.direction
+                    and autre.progression > vehicule.progression
+                ]
+                if voitures_devant:
+                    position_voiture_devant = min(voitures_devant)
+                    distance_trop_courte = prochaine_position > position_voiture_devant - 20
+                    if distance_trop_courte:
+                        reponse = f"ATTENTE|{vehicule.progression}"
+                        message = f"{vehicule.nom} garde ses distances"
 
-            if not reponse and approche_ligne_arret and not feu_vert:
+            if not vehicule.engagee and not reponse and approche_ligne_arret and not feu_vert:
                 vehicule.progression = 40
                 reponse = "POSITION|40"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
-            elif not reponse and vehicule.progression == 40 and not feu_vert:
+            elif not vehicule.engagee and not reponse and vehicule.progression == 40 and not feu_vert:
                 reponse = "ATTENTE|40"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
             elif not reponse and entre_dans_le_carrefour:
@@ -140,6 +142,8 @@ class ServeurCarrefour:
                     message = f"{vehicule.nom} attend avant le carrefour"
             if not reponse:
                 vehicule.progression = prochaine_position
+                if vehicule.progression >= 50:
+                    vehicule.engagee = True
                 reponse = f"POSITION|{vehicule.progression}"
                 progression_visible = max(0, vehicule.progression)
                 message = f"{vehicule.nom} traverse ({progression_visible} %)"
