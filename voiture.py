@@ -35,11 +35,16 @@ def simuler_voiture(numero: int):
             if not passage_autorise:
                 print(f"{nom} : attente trop longue, je reste au feu.")
                 return
-            for _ in range(10):
+            position = 0
+            while position < 100:
                 client.sendall(b"AVANCE\n")
-                position = client_file.readline().strip().split("|")
-                if len(position) == 2 and position[0] == "POSITION":
-                    print(f"{nom} : progression {position[1]} %")
+                reponse = client_file.readline().strip().split("|")
+                if len(reponse) == 2 and reponse[0] in ("POSITION", "ATTENTE"):
+                    position = int(reponse[1])
+                    if reponse[0] == "ATTENTE":
+                        print(f"{nom} : carrefour occupe, j'attends.")
+                    else:
+                        print(f"{nom} : progression {position} %")
                 time.sleep(0.4)
             client.sendall(b"TERMINE\n")
             print(f"{nom} a traverse le carrefour.")

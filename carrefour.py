@@ -87,6 +87,30 @@ class ServeurCarrefour:
             self.etat.prochaine_direction = (self.etat.prochaine_direction + 1) % len(directions)
         return direction
 
+    @staticmethod
+    def _axe(direction: str) -> str:
+        return "vertical" if direction in ("N", "S") else "horizontal"
+
+    def _avancer_vehicule(self, client: socket.socket, vehicule: Vehicule):
+        with self.etat.verrou:
+            prochaine_position = min(vehicule.progression + 10, 100)
+            entre_dans_le_carrefour = vehicule.progression < 50 <= prochaine_position
+            if entre_dans_le_carrefour:
+                axe_vehicule = self._axe(vehicule.direction)
+                carrefour_occupe = any(
+                    autre.nom != vehicule.nom
+                    and self._axe(autre.direction) != axe_vehicule
+                    and 40 <= autre.progression <= 60
+                    for autre in self.etat.vehicules.values()
+                )
+                if carrefour_occupe:
+                    self._envoyer(client, f"ATTENTE|{vehicule.progression}")
+                    return
+            vehicule.progression = prochaine_position
+            progression = vehicule.progression
+        self._envoyer(client, f"POSITION|{progression}")
+        self.etat.notifier(f"{vehicule.nom} traverse ({progression} %)")
+
     def _gerer_client(self, client: socket.socket):
         vehicule: Vehicule | None = None
         lecteur = client.makefile("r", encoding="utf-8")
@@ -110,11 +134,7 @@ class ServeurCarrefour:
                     self.etat.notifier(f"Priorite accordee a {vehicule.nom}")
                     print(f"Demande URGENCE de {vehicule.nom} ({vehicule.direction})")
                 elif commande == "AVANCE" and vehicule:
-                    with self.etat.verrou:
-                        vehicule.progression = min(vehicule.progression + 10, 100)
-                        progression = vehicule.progression
-                    self._envoyer(client, f"POSITION|{progression}")
-                    self.etat.notifier(f"{vehicule.nom} traverse ({progression} %)")
+                    self._avancer_vehicule(client, vehicule)
                 elif commande == "TERMINE" and vehicule:
                     with self.etat.verrou:
                         vehicule.progression = 100
@@ -172,13 +192,13 @@ class VueCarrefour(QWidget):
             progression = vehicule.progression / 100
             decalage = (index % 3 - 1) * 8
             if vehicule.direction == "N":
-                x, y = centre_x - 15 + decalage, 45 + int(175 * progression)
+                x, y = centre_x - 15 + decalage, 20 + int(360 * progression)
             elif vehicule.direction == "S":
-                x, y = centre_x - 15 + decalage, 375 - int(175 * progression)
+                x, y = centre_x - 15 + decalage, 380 - int(360 * progression)
             elif vehicule.direction == "E":
-                x, y = largeur - 125 - int((largeur / 2 - 110) * progression), centre_y - 15 + decalage
+                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y - 15 + decalage
             else:
-                x, y = 95 + int((centre_x - 110) * progression), centre_y - 15 + decalage
+                x, y = 95 + int((largeur - 220) * progression), centre_y - 15 + decalage
             painter.setBrush(QBrush(QColor("#e9584f") if vehicule.prioritaire else QColor("#3478bd")))
             painter.setPen(QPen(QColor("#172027"), 1))
             painter.drawRect(x, y, 30, 22)

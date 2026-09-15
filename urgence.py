@@ -21,11 +21,16 @@ def main():
             reponse = client_file.readline().strip()
             if reponse == "PASSAGE_AUTORISE":
                 print("Carrefour : PASSAGE_AUTORISE")
-                for _ in range(10):
+                position = 0
+                while position < 100:
                     client.sendall(b"AVANCE\n")
-                    position = client_file.readline().strip().split("|")
-                    if len(position) == 2 and position[0] == "POSITION":
-                        print(f"{nom} : progression {position[1]} %")
+                    progression = client_file.readline().strip().split("|")
+                    if len(progression) == 2 and progression[0] in ("POSITION", "ATTENTE"):
+                        position = int(progression[1])
+                        if progression[0] == "ATTENTE":
+                            print(f"{nom} : carrefour occupe, j'attends.")
+                        else:
+                            print(f"{nom} : progression {position} %")
                     time.sleep(0.4)
                 client.sendall(b"TERMINE\n")
                 print(f"{nom} a termine son passage.")

@@ -71,7 +71,8 @@ prioritaire envoie `URGENCE`, le serveur met sa direction au vert, répond
 `PASSAGE_AUTORISE`, puis revient au cycle normal après `TERMINE`.
 
 Les voitures restent visibles pendant leur traversée : leur position avance progressivement
-sur la route avant qu'elles quittent l'interface.
+sur toute la route jusqu'à `100 %`. Le serveur bloque l'entrée d'une route perpendiculaire
+si une autre voiture occupe déjà le centre du carrefour, afin d'éviter les collisions.
 
 Pour tester le scénario complet, lancer d'abord `carrefour.py`, puis deux ou trois
 commandes `voiture.py`, et enfin `urgence.py`. Les connexions, les changements de
