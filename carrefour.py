@@ -159,6 +159,8 @@ class ServeurCarrefour:
                 elif commande == "URGENCE" and vehicule:
                     vehicule.prioritaire = True
                     with self.etat.verrou:
+                        vehicule.progression = 0
+                        vehicule.engagee = False
                         self.etat.feux = {direction: "VERT" if direction == vehicule.direction else "ROUGE"
                                           for direction in ("N", "S", "E", "O")}
                         self.etat.priorite = vehicule.direction
