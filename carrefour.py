@@ -18,6 +18,7 @@ class Vehicule:
     type_vehicule: str
     direction: str
     prioritaire: bool = False
+    progression: int = 0
 
 
 class EtatCarrefour(QObject):
@@ -30,6 +31,7 @@ class EtatCarrefour(QObject):
         self.vehicules: dict[str, Vehicule] = {}
         self.priorite: str | None = None
         self.message = "Trafic normal"
+        self.prochaine_direction = 0
 
     def notifier(self, message: str | None = None):
         with self.verrou:
@@ -78,6 +80,13 @@ class ServeurCarrefour:
     def _envoyer(self, client: socket.socket, message: str):
         client.sendall((message + "\n").encode("utf-8"))
 
+    def _choisir_direction(self) -> str:
+        directions = ("N", "S", "E", "O")
+        with self.etat.verrou:
+            direction = directions[self.etat.prochaine_direction]
+            self.etat.prochaine_direction = (self.etat.prochaine_direction + 1) % len(directions)
+        return direction
+
     def _gerer_client(self, client: socket.socket):
         vehicule: Vehicule | None = None
         lecteur = client.makefile("r", encoding="utf-8")
@@ -86,7 +95,8 @@ class ServeurCarrefour:
                 morceaux = ligne.strip().split("|")
                 commande = morceaux[0]
                 if commande == "IDENTITE" and len(morceaux) >= 4:
-                    vehicule = Vehicule(morceaux[1], morceaux[2], morceaux[3])
+                    direction = morceaux[3] if morceaux[3] in ("N", "S", "E", "O") else self._choisir_direction()
+                    vehicule = Vehicule(morceaux[1], morceaux[2], direction)
                     with self.etat.verrou:
                         self.etat.vehicules[vehicule.nom] = vehicule
                     self._envoyer(client, f"FEU|{vehicule.direction}|{self.etat.etat_feu(vehicule.direction)}")
@@ -99,9 +109,18 @@ class ServeurCarrefour:
                     self._envoyer(client, "PASSAGE_AUTORISE")
                     self.etat.notifier(f"Priorite accordee a {vehicule.nom}")
                     print(f"Demande URGENCE de {vehicule.nom} ({vehicule.direction})")
+                elif commande == "AVANCE" and vehicule:
+                    with self.etat.verrou:
+                        vehicule.progression = min(vehicule.progression + 10, 100)
+                        progression = vehicule.progression
+                    self._envoyer(client, f"POSITION|{progression}")
+                    self.etat.notifier(f"{vehicule.nom} traverse ({progression} %)")
                 elif commande == "TERMINE" and vehicule:
-                    self.etat.changer_feux(None)
-                    self.etat.notifier("Trafic normal")
+                    with self.etat.verrou:
+                        vehicule.progression = 100
+                    if vehicule.prioritaire:
+                        self.etat.changer_feux(None)
+                        self.etat.notifier("Trafic normal")
                     print(f"Passage termine pour {vehicule.nom}")
         except (ConnectionResetError, BrokenPipeError, OSError):
             print("Un client s'est deconnecte")
@@ -140,8 +159,8 @@ class VueCarrefour(QWidget):
         painter.setPen(QPen(QColor("#f8faf9"), 2))
         painter.drawLine(centre_x, 35, centre_x, 405)
         painter.drawLine(100, centre_y, largeur - 100, centre_y)
-        positions = {"N": (centre_x - 35, 65), "S": (centre_x - 35, 330),
-                     "E": (largeur - 145, centre_y - 35), "O": (105, centre_y - 35)}
+        positions = {"N": (centre_x - 78, 78), "S": (centre_x + 50, 335),
+                 "E": (largeur - 155, centre_y - 78), "O": (108, centre_y + 50)}
         for direction, (x, y) in positions.items():
             couleur = "#36a269" if feux[direction] == "VERT" else "#d94b4b"
             painter.setBrush(QBrush(QColor(couleur)))
@@ -150,12 +169,16 @@ class VueCarrefour(QWidget):
             painter.setPen(QColor("#20282d"))
             painter.drawText(x + 8, y - 8, direction)
         for index, vehicule in enumerate(vehicules):
-            if vehicule.direction in ("N", "S"):
-                x = centre_x - 18 + (index % 2) * 36
-                y = 125 + (index % 3) * 38
+            progression = vehicule.progression / 100
+            decalage = (index % 3 - 1) * 8
+            if vehicule.direction == "N":
+                x, y = centre_x - 15 + decalage, 45 + int(175 * progression)
+            elif vehicule.direction == "S":
+                x, y = centre_x - 15 + decalage, 375 - int(175 * progression)
+            elif vehicule.direction == "E":
+                x, y = largeur - 125 - int((largeur / 2 - 110) * progression), centre_y - 15 + decalage
             else:
-                x = 180 + (index % 4) * 70
-                y = centre_y - 18 + (index % 2) * 36
+                x, y = 95 + int((centre_x - 110) * progression), centre_y - 15 + decalage
             painter.setBrush(QBrush(QColor("#e9584f") if vehicule.prioritaire else QColor("#3478bd")))
             painter.setPen(QPen(QColor("#172027"), 1))
             painter.drawRect(x, y, 30, 22)

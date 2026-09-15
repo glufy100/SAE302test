@@ -21,7 +21,12 @@ def main():
             reponse = client_file.readline().strip()
             if reponse == "PASSAGE_AUTORISE":
                 print("Carrefour : PASSAGE_AUTORISE")
-                time.sleep(3)
+                for _ in range(10):
+                    client.sendall(b"AVANCE\n")
+                    position = client_file.readline().strip().split("|")
+                    if len(position) == 2 and position[0] == "POSITION":
+                        print(f"{nom} : progression {position[1]} %")
+                    time.sleep(0.4)
                 client.sendall(b"TERMINE\n")
                 print(f"{nom} a termine son passage.")
     except (ConnectionRefusedError, TimeoutError):

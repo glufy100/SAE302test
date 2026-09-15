@@ -59,15 +59,19 @@ Ouvrir plusieurs terminaux dans le dossier du projet :
 
 ```bash
 python carrefour.py
-python voiture.py Voiture-1 N
-python voiture.py Voiture-2 E
+python voiture.py 5
 python urgence.py Ambulance N
 ```
 
 Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:5000`.
-Les voitures normales interrogent leur feu et attendent s'il est rouge. Le véhicule
+Le nombre `5` indique la quantité de voitures à générer. Le serveur choisit automatiquement
+les routes, donc il n'est pas nécessaire d'indiquer une direction. Les voitures normales
+interrogent leur feu et attendent s'il est rouge. Le véhicule
 prioritaire envoie `URGENCE`, le serveur met sa direction au vert, répond
 `PASSAGE_AUTORISE`, puis revient au cycle normal après `TERMINE`.
+
+Les voitures restent visibles pendant leur traversée : leur position avance progressivement
+sur la route avant qu'elles quittent l'interface.
 
 Pour tester le scénario complet, lancer d'abord `carrefour.py`, puis deux ou trois
 commandes `voiture.py`, et enfin `urgence.py`. Les connexions, les changements de
