@@ -23,10 +23,11 @@ def simuler_voiture(numero: int):
                 reponse = client_file.readline().strip().split("|")
                 if len(reponse) == 2 and reponse[0] in ("POSITION", "ATTENTE"):
                     position = int(reponse[1])
+                    position_affichee = max(0, position)
                     if reponse[0] == "ATTENTE":
                         print(f"{nom} : carrefour occupe, j'attends.")
                     else:
-                        print(f"{nom} : progression {position} %")
+                        print(f"{nom} : progression {position_affichee} %")
                 time.sleep(0.4)
             client.sendall(b"TERMINE\n")
             print(f"{nom} a traverse le carrefour.")
@@ -51,7 +52,7 @@ def main():
             voiture = threading.Thread(target=simuler_voiture, args=(numero,), daemon=True)
             voiture.start()
             numero += 1
-            time.sleep(max(0.6, 3.0 / densite))
+            time.sleep(max(1.0, 6.0 / densite))
     except KeyboardInterrupt:
         print("Generation des voitures arretee.")
 

@@ -27,10 +27,11 @@ def main():
                     progression = client_file.readline().strip().split("|")
                     if len(progression) == 2 and progression[0] in ("POSITION", "ATTENTE"):
                         position = int(progression[1])
+                        position_affichee = max(0, position)
                         if progression[0] == "ATTENTE":
                             print(f"{nom} : carrefour occupe, j'attends.")
                         else:
-                            print(f"{nom} : progression {position} %")
+                            print(f"{nom} : progression {position_affichee} %")
                     time.sleep(0.4)
                 client.sendall(b"TERMINE\n")
                 print(f"{nom} a termine son passage.")

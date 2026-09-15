@@ -32,6 +32,8 @@ class EtatCarrefour(QObject):
         self.priorite: str | None = None
         self.message = "Trafic normal"
         self.prochaine_direction = 0
+        self.phase = "NS_VERT"
+        self.temps_phase = 0
 
     def notifier(self, message: str | None = None):
         with self.verrou:
@@ -49,9 +51,12 @@ class EtatCarrefour(QObject):
                 self.feux = {direction: "VERT" if direction == direction_prioritaire else "ROUGE"
                              for direction in ("N", "S", "E", "O")}
                 self.priorite = direction_prioritaire
+                self.phase = "URGENCE"
             else:
                 self.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
                 self.priorite = None
+                self.phase = "NS_VERT"
+                self.temps_phase = 0
 
 
 class ServeurCarrefour:
@@ -100,13 +105,14 @@ class ServeurCarrefour:
             reponse = ""
             message = ""
 
+            couleur_feu = self.etat.feux[vehicule.direction]
             if approche_ligne_arret and not feu_vert:
                 vehicule.progression = 40
                 reponse = "POSITION|40"
-                message = f"{vehicule.nom} attend au feu rouge"
+                message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
             elif vehicule.progression == 40 and not feu_vert:
                 reponse = "ATTENTE|40"
-                message = f"{vehicule.nom} attend au feu rouge"
+                message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
             elif entre_dans_le_carrefour:
                 axe_vehicule = self._axe(vehicule.direction)
                 carrefour_occupe = any(
@@ -202,7 +208,7 @@ class VueCarrefour(QWidget):
         positions = {"N": (centre_x - 78, 78), "S": (centre_x + 50, 335),
                  "E": (largeur - 155, centre_y - 78), "O": (108, centre_y + 50)}
         for direction, (x, y) in positions.items():
-            couleur = "#36a269" if feux[direction] == "VERT" else "#d94b4b"
+            couleur = {"VERT": "#36a269", "ORANGE": "#f0a52b", "ROUGE": "#d94b4b"}[feux[direction]]
             painter.setBrush(QBrush(QColor(couleur)))
             painter.setPen(QPen(QColor("#20282d"), 2))
             painter.drawEllipse(x, y, 28, 28)
@@ -263,11 +269,33 @@ class FenetreCarrefour(QMainWindow):
         with self.vue.etat.verrou:
             if self.vue.etat.priorite is not None:
                 return
-            nord_sud_verts = self.vue.etat.feux["N"] == "VERT"
-            self.vue.etat.feux = ({"N": "ROUGE", "S": "ROUGE", "E": "VERT", "O": "VERT"}
-                                  if nord_sud_verts else
-                                  {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"})
-        self.vue.etat.notifier("Trafic normal")
+            self.vue.etat.temps_phase += 1
+            phase = self.vue.etat.phase
+            temps_phase = self.vue.etat.temps_phase
+            if phase == "NS_VERT" and temps_phase >= 6:
+                self.vue.etat.phase = "NS_ORANGE"
+                self.vue.etat.temps_phase = 0
+                self.vue.etat.feux = {"N": "ORANGE", "S": "ORANGE", "E": "ROUGE", "O": "ROUGE"}
+                message = "Feux orange Nord-Sud : les voitures terminent leur passage"
+            elif phase == "NS_ORANGE" and temps_phase >= 2:
+                self.vue.etat.phase = "EO_VERT"
+                self.vue.etat.temps_phase = 0
+                self.vue.etat.feux = {"N": "ROUGE", "S": "ROUGE", "E": "VERT", "O": "VERT"}
+                message = "Trafic Est-Ouest"
+            elif phase == "EO_VERT" and temps_phase >= 6:
+                self.vue.etat.phase = "EO_ORANGE"
+                self.vue.etat.temps_phase = 0
+                self.vue.etat.feux = {"N": "ROUGE", "S": "ROUGE", "E": "ORANGE", "O": "ORANGE"}
+                message = "Feux orange Est-Ouest : les voitures terminent leur passage"
+            elif phase == "EO_ORANGE" and temps_phase >= 2:
+                self.vue.etat.phase = "NS_VERT"
+                self.vue.etat.temps_phase = 0
+                self.vue.etat.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
+                message = "Trafic Nord-Sud"
+            else:
+                message = None
+        if message:
+            self.vue.etat.notifier(message)
 
     def closeEvent(self, event):
         self.serveur.arreter()

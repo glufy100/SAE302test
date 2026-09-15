@@ -67,7 +67,8 @@ Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:50
 Le nombre `3` indique la densité de circulation. Les voitures sont générées en continu,
 et une densité plus élevée réduit le délai entre deux apparitions. Le serveur choisit
 automatiquement les routes, donc il n'est pas nécessaire d'indiquer une direction. Les voitures normales
-interrogent leur feu et attendent s'il est rouge. Le véhicule
+avancent jusqu'à la ligne d'arrêt, attendent au feu orange ou rouge, puis traversent
+quand le feu est vert. Le véhicule
 prioritaire envoie `URGENCE`, le serveur met sa direction au vert, répond
 `PASSAGE_AUTORISE`, puis revient au cycle normal après `TERMINE`.
 
