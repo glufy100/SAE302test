@@ -187,6 +187,11 @@ class ServeurCarrefour:
             if vehicule:
                 with self.etat.verrou:
                     self.etat.vehicules.pop(vehicule.nom, None)
+                    if vehicule.prioritaire:
+                        self.etat.feux = {"N": "VERT", "S": "VERT", "E": "ROUGE", "O": "ROUGE"}
+                        self.etat.priorite = None
+                        self.etat.phase = "NS_VERT"
+                        self.etat.temps_phase = 0
                 self.etat.notifier()
             lecteur.close()
             client.close()
