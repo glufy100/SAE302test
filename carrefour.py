@@ -141,7 +141,8 @@ class ServeurCarrefour:
             if not reponse:
                 vehicule.progression = prochaine_position
                 reponse = f"POSITION|{vehicule.progression}"
-                message = f"{vehicule.nom} traverse ({vehicule.progression} %)"
+                progression_visible = max(0, vehicule.progression)
+                message = f"{vehicule.nom} traverse ({progression_visible} %)"
         self._envoyer(client, reponse)
         self.etat.notifier(message)
 
