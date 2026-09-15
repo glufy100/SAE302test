@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QW
 
 HOST = "127.0.0.1"
 PORT = 5000
+LIGNE_ARRET = 30
+DEBUT_CENTRE = 50
 
 
 @dataclass
@@ -101,8 +103,8 @@ class ServeurCarrefour:
         with self.etat.verrou:
             prochaine_position = min(vehicule.progression + 10, 100)
             feu_vert = self.etat.feux[vehicule.direction] == "VERT"
-            approche_ligne_arret = vehicule.progression < 40 < prochaine_position
-            entre_dans_le_carrefour = vehicule.progression < 50 <= prochaine_position
+            approche_ligne_arret = vehicule.progression < LIGNE_ARRET < prochaine_position
+            entre_dans_le_carrefour = vehicule.progression < DEBUT_CENTRE <= prochaine_position
             reponse = ""
             message = ""
 
@@ -123,18 +125,18 @@ class ServeurCarrefour:
                         message = f"{vehicule.nom} garde ses distances"
 
             if not vehicule.engagee and not reponse and approche_ligne_arret and not feu_vert:
-                vehicule.progression = 40
-                reponse = "POSITION|40"
+                vehicule.progression = LIGNE_ARRET
+                reponse = f"POSITION|{LIGNE_ARRET}"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
-            elif not vehicule.engagee and not reponse and vehicule.progression == 40 and not feu_vert:
-                reponse = "ATTENTE|40"
+            elif not vehicule.engagee and not reponse and vehicule.progression == LIGNE_ARRET and not feu_vert:
+                reponse = f"ATTENTE|{LIGNE_ARRET}"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
             elif not reponse and entre_dans_le_carrefour:
                 axe_vehicule = self._axe(vehicule.direction)
                 carrefour_occupe = any(
                     autre.nom != vehicule.nom
                     and self._axe(autre.direction) != axe_vehicule
-                    and 40 <= autre.progression <= 60
+                    and LIGNE_ARRET <= autre.progression <= 60
                     for autre in self.etat.vehicules.values()
                 )
                 if carrefour_occupe:
