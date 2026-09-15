@@ -63,6 +63,17 @@ python voiture.py 3
 python urgence.py Ambulance N
 ```
 
+Un lancement automatise est aussi disponible sur macOS et Linux :
+
+```bash
+chmod +x lancer_simulation.sh
+./lancer_simulation.sh 3
+```
+
+Le script affiche les informations importantes dans le terminal, genere le trafic
+normal en continu, puis lance une ambulance apres quelques secondes. `Ctrl+C` arrete
+proprement les trois programmes.
+
 Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:5000`.
 Le nombre `3` indique la densité de circulation. Les voitures sont générées en continu,
 et une densité plus élevée réduit le délai entre deux apparitions. Le serveur choisit

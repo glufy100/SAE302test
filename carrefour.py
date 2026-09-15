@@ -106,14 +106,28 @@ class ServeurCarrefour:
             message = ""
 
             couleur_feu = self.etat.feux[vehicule.direction]
-            if approche_ligne_arret and not feu_vert:
+            voitures_devant = [
+                autre.progression
+                for autre in self.etat.vehicules.values()
+                if autre.nom != vehicule.nom
+                and autre.direction == vehicule.direction
+                and autre.progression > vehicule.progression
+            ]
+            if voitures_devant:
+                position_voiture_devant = min(voitures_devant)
+                distance_trop_courte = prochaine_position > position_voiture_devant - 20
+                if distance_trop_courte:
+                    reponse = f"ATTENTE|{vehicule.progression}"
+                    message = f"{vehicule.nom} garde ses distances"
+
+            if not reponse and approche_ligne_arret and not feu_vert:
                 vehicule.progression = 40
                 reponse = "POSITION|40"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
-            elif vehicule.progression == 40 and not feu_vert:
+            elif not reponse and vehicule.progression == 40 and not feu_vert:
                 reponse = "ATTENTE|40"
                 message = f"{vehicule.nom} attend au feu {couleur_feu.lower()}"
-            elif entre_dans_le_carrefour:
+            elif not reponse and entre_dans_le_carrefour:
                 axe_vehicule = self._axe(vehicule.direction)
                 carrefour_occupe = any(
                     autre.nom != vehicule.nom
