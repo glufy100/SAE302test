@@ -99,6 +99,10 @@ class ServeurCarrefour:
     def _axe(direction: str) -> str:
         return "vertical" if direction in ("N", "S") else "horizontal"
 
+    @staticmethod
+    def _direction_a_droite(direction: str) -> str:
+        return {"N": "E", "E": "S", "S": "O", "O": "N"}[direction]
+
     def _avancer_vehicule(self, client: socket.socket, vehicule: Vehicule):
         with self.etat.verrou:
             prochaine_position = min(vehicule.progression + 10, 100)
@@ -136,12 +140,21 @@ class ServeurCarrefour:
                 carrefour_occupe = any(
                     autre.nom != vehicule.nom
                     and self._axe(autre.direction) != axe_vehicule
-                    and LIGNE_ARRET <= autre.progression <= 60
+                    and autre.engagee
+                    and 50 <= autre.progression <= 60
                     for autre in self.etat.vehicules.values()
                 )
+                vehicule_prioritaire_a_droite = any(
+                    autre.direction == self._direction_a_droite(vehicule.direction)
+                    and not autre.engagee
+                    and autre.progression >= LIGNE_ARRET
+                    and self.etat.feux[autre.direction] == "VERT"
+                    for autre in self.etat.vehicules.values()
+                )
+                carrefour_occupe = carrefour_occupe or vehicule_prioritaire_a_droite
                 if carrefour_occupe:
                     reponse = f"ATTENTE|{vehicule.progression}"
-                    message = f"{vehicule.nom} attend avant le carrefour"
+                    message = f"{vehicule.nom} applique la priorite a droite"
             if not reponse:
                 vehicule.progression = prochaine_position
                 if vehicule.progression >= 50:
