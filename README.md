@@ -55,4 +55,21 @@ pip install -r requirements.txt
 
 ## Lancement
 
-La procédure de lancement de la simulation sera ajoutée lorsque le développement sera terminé.
+Ouvrir plusieurs terminaux dans le dossier du projet :
+
+```bash
+python carrefour.py
+python voiture.py Voiture-1 N
+python voiture.py Voiture-2 E
+python urgence.py Ambulance N
+```
+
+Le premier programme ouvre la fenêtre du carrefour et écoute sur `127.0.0.1:5000`.
+Les voitures normales interrogent leur feu et attendent s'il est rouge. Le véhicule
+prioritaire envoie `URGENCE`, le serveur met sa direction au vert, répond
+`PASSAGE_AUTORISE`, puis revient au cycle normal après `TERMINE`.
+
+Pour tester le scénario complet, lancer d'abord `carrefour.py`, puis deux ou trois
+commandes `voiture.py`, et enfin `urgence.py`. Les connexions, les changements de
+feux et le nombre de véhicules sont visibles dans la fenêtre et dans le terminal du
+serveur. Fermer la fenêtre du carrefour arrête proprement le serveur.

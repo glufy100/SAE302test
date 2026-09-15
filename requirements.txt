@@ -1,4 +1,1 @@
-socket
-threading
-time
-random
+PySide6
