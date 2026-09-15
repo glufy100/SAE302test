@@ -230,25 +230,25 @@ class VueCarrefour(QWidget):
             painter.setPen(QColor("#20282d"))
             painter.drawText(x + 8, y - 8, direction)
         for index, vehicule in enumerate(vehicules):
-            progression = vehicule.progression / 100
-            decalage = (index % 3 - 1) * 8
+            progression = max(-0.04, min(1.0, vehicule.progression / 100))
             if vehicule.direction == "N":
-                x, y = centre_x - 11 + decalage, 20 + int(360 * progression)
+                x, y = centre_x - 28, 20 + int(360 * progression)
                 largeur_vehicule, hauteur_vehicule = 22, 32
             elif vehicule.direction == "S":
-                x, y = centre_x - 11 + decalage, 380 - int(360 * progression)
+                x, y = centre_x + 6, 380 - int(360 * progression)
                 largeur_vehicule, hauteur_vehicule = 22, 32
             elif vehicule.direction == "E":
-                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y - 11 + decalage
+                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y + 6
                 largeur_vehicule, hauteur_vehicule = 32, 22
             else:
-                x, y = 95 + int((largeur - 220) * progression), centre_y - 11 + decalage
+                x, y = 95 + int((largeur - 220) * progression), centre_y - 28
                 largeur_vehicule, hauteur_vehicule = 32, 22
             painter.setBrush(QBrush(QColor("#e9584f") if vehicule.prioritaire else QColor("#3478bd")))
             painter.setPen(QPen(QColor("#172027"), 1))
             painter.drawRect(x, y, largeur_vehicule, hauteur_vehicule)
-            painter.setPen(QColor("#172027"))
-            painter.drawText(x, y - 5, vehicule.nom[:12])
+            painter.setPen(QColor("#ffffff"))
+            identifiant = "U" if vehicule.prioritaire else vehicule.nom.split("-")[-1]
+            painter.drawText(x + 3, y + hauteur_vehicule - 6, identifiant)
 
 
 class FenetreCarrefour(QMainWindow):
@@ -270,7 +270,7 @@ class FenetreCarrefour(QMainWindow):
         self.actualiser()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.changer_cycle_normal)
-        self.timer.start(8000)
+        self.timer.start(1000)
 
     def actualiser(self):
         with self.vue.etat.verrou:
