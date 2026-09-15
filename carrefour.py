@@ -242,10 +242,10 @@ class VueCarrefour(QWidget):
                 x, y = centre_x + 6, 380 - int(360 * progression)
                 largeur_vehicule, hauteur_vehicule = 22, 32
             elif vehicule.direction == "E":
-                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y + 6
+                x, y = largeur - 125 - int((largeur - 220) * progression), centre_y - 28
                 largeur_vehicule, hauteur_vehicule = 32, 22
             else:
-                x, y = 95 + int((largeur - 220) * progression), centre_y - 28
+                x, y = 95 + int((largeur - 220) * progression), centre_y + 6
                 largeur_vehicule, hauteur_vehicule = 32, 22
             painter.setBrush(QBrush(QColor("#e9584f") if vehicule.prioritaire else QColor("#3478bd")))
             painter.setPen(QPen(QColor("#172027"), 1))
